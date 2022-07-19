@@ -1,0 +1,17 @@
+<odoo>
+<!--
+
+<record id="importador_report" model="ir.actions.report">
+    <field name="name">Informe de importador</field>
+    <field name="model">reloj_registro.importador</field>
+    <field name="report_type">qweb-pdf</field>
+    <field name="report_name">reloj_registro.importador_report_view</field>
+    <field name="report_file">reloj_registro.importador_report_view</field>
+    <field name="binding_model_id" ref="model_reloj_registro_importador"/>
+    <field name="binding_type">report</field> 
+</record>
+
+-def-->
+
+
+</odoo>

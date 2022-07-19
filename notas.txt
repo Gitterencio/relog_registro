@@ -1,0 +1,223 @@
+from odoo import api, fields, models, SUPERUSER_ID, _
+from datetime import datetime
+import pyodbc
+import re
+
+class importador(models.Model):
+    _name = 'reloj_registro.importador'
+    _description = 'Importador de registro'
+    
+    name = fields.Char(string='Nombre de la conexion')
+    host = fields.Char(string='Host del servidor',default='127.0.0.1')
+    namedb = fields.Char(string='Nombre de la BD',default='RELOJ')
+    user = fields.Char(string='Usuario BD',default='SA')
+    driver =fields.Char(string='Driver',default='ODBC Driver 17 for SQL Server')
+    pwd = fields.Char(string='Contraseña',default='asd.456789')
+
+    conn_string = fields.Text('Descripciòn',compute='_get_conn_string')
+
+    #reg_ids = fields.Many2many('bitacora_nomina.bitacora',string='Bitacoras')
+
+    def _get_conn_string(self):
+        self.conn_string = f"""
+	        DRIVER={{{self.driver}}};
+	        SERVER={self.host};
+	        DATABASE={self.namedb};
+	        Trust_Connection=yes;
+	        UID={self.user};
+	        PWD={self.pwd};"""
+    
+    def imprimir(self):
+        print(self.conn_string)
+        users= (self.env["hr.employee"].search([]))
+        for u in users:
+            if(u.barcode):
+                limpio =re.sub('[\.-]','',u.barcode)
+                resultado = limpio[3:]
+
+                print(resultado)
+                id = self._get_employee_id('8199800171')
+                print(u.id)
+                print(id)
+        print("///////////")
+
+    def _get_employee_id(self,code):
+        id = 0
+        users= (self.env["hr.employee"].search([]))
+        for u in users:
+            if(u.barcode):
+                limpio =re.sub('[\.-]','',u.barcode)
+                resultado = limpio[3:]
+                if(resultado == code):
+                    id=u.id
+        return id
+
+                
+
+    def importar_Registros(self):
+        #(self.env["bitacora_nomina.bitacora"]).create({"name":'latios',"revisado":"GERENCIA","estado":True})
+        #(self.env["hr.attendance"]).create({"employee_id":self.env.uid,"check_in":datetime.now()})
+
+        #print((self.reg_ids))
+        #ids = [nw.id]
+        #if len(self.reg_ids) > 0:
+        #    for id in self.reg_ids:
+        #        ids.append(id.id)
+        #self.write({"reg_ids":[(4,0,ids)]})
+        #print(ids)
+        cnxn=pyodbc.connect(self.conn_string)
+        cursor = cnxn.cursor()
+        cursor.execute("""SELECT [Logid]
+                              ,u.[Userid]
+                        	  ,[Name]
+                        	  ,[CardNum]
+                              ,[CheckTime]
+                              ,[CheckType]
+                        	  ,[Statusid]
+                              ,[StatusText]
+                          FROM [RELOJ].[dbo].[Checkinout] c
+                          INNER JOIN [RELOJ].[dbo].[Status] s ON s.Statusid = c.CheckType 
+                          INNER JOIN [RELOJ].[dbo].[Userinfo] u ON u.Userid = c.Userid; """)
+        row = cursor.fetchone() 
+        uno = []
+        while row: 
+            print(row)
+            uno = row
+            row = cursor.fetchone()
+        return{
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Registros de Reloj',
+                'message': '''¡Atención! 
+                Importacion de datos terminada {0} - {1} - {2} - {3}'''.format(uno.Name,uno.CheckTime,uno.StatusText,uno.Statusid),
+                'sticky': True,
+                'target': 'current',
+                'type':'success',
+            }}
+ 
+
+--------------v2
+
+    def importar_Registros(self):
+ 
+        #(self.env["hr.attendance"]).create({"employee_id":self.env.uid,"check_in":datetime.now()})
+
+        cnxn=pyodbc.connect(self.conn_string)
+        cursor = cnxn.cursor()
+        cursor.execute("""SELECT [Logid]
+                              ,u.[Userid]
+                        	  ,[Name]
+                        	  ,[CardNum]
+                              ,[CheckTime]
+                              ,[CheckType]
+                        	  ,[Statusid]
+                              ,[StatusText]
+                          FROM [RELOJ].[dbo].[Checkinout] c
+                          INNER JOIN [RELOJ].[dbo].[Status] s ON s.Statusid = c.CheckType 
+                          INNER JOIN [RELOJ].[dbo].[Userinfo] u ON u.Userid = c.Userid; """)
+        row = cursor.fetchone() 
+        uno = []
+        id = 0
+        while row: 
+            print(row)
+            uno = row
+            id = self._get_employee_id(uno.CardNum)
+            row = cursor.fetchone()
+        employs= (self.env["hr.employee"].search([('id', '=', id)]))
+        return{
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Registros de Reloj',
+                'message': '''¡Atención! 
+                Importacion de datos terminada {0} - {1} - {2} - {3}-{4}-{5}'''.format(uno.Name,uno.CheckTime,uno.StatusText,uno.Statusid,id,employs[0].name),
+                'sticky': True,
+                'target': 'current',
+                'type':'success',
+            }}
+ 
+
+
+-----------v3
+    def importar_Registros(self):
+ 
+        #(self.env["hr.attendance"]).create({"employee_id":self.env.uid,"check_in":datetime.now()})
+
+        cnxn=pyodbc.connect(self.conn_string)
+        en=pyodbc.connect(self.conn_string)
+        sa=pyodbc.connect(self.conn_string)
+        entradas = en.cursor()
+        salidas = sa.cursor()
+        employes = cnxn.cursor()
+        employes.execute(""" SELECT [Userid]
+                        	,[CardNum]
+                        	,[Name] 
+                        	FROM [RELOJ].[dbo].[Userinfo]; """)
+        
+        emp = employes.fetchone() 
+        while emp:
+          id = self._get_employee_id(emp.CardNum)
+          if id :
+            entradas.execute("""SELECT [Logid]
+                                 ,[CheckTime]
+                                 ,[CheckType]
+                         	     ,[Statusid]
+                                 ,[StatusText]
+                            FROM [RELOJ].[dbo].[Checkinout] c
+                            INNER JOIN [RELOJ].[dbo].[Status] s ON s.Statusid = c.CheckType 
+                            AND c.Userid = {1}
+                            AND YEAR([CheckTime]) = YEAR('{0}')
+                            AND MONTH([CheckTime]) = MONTH('{0}')
+                            AND [CheckType] = 0 
+                            ORDER BY CheckTime ASC""".format('2022-07-06',emp.Userid))
+
+            salidas.execute("""SELECT [Logid]
+                                 ,[CheckTime]
+                                 ,[CheckType]
+                         	     ,[Statusid]
+                                 ,[StatusText]
+                            FROM [RELOJ].[dbo].[Checkinout] c
+                            INNER JOIN [RELOJ].[dbo].[Status] s ON s.Statusid = c.CheckType 
+                            AND c.Userid = {1}
+                            AND YEAR([CheckTime]) = YEAR('{0}')
+                            AND MONTH([CheckTime]) = MONTH('{0}')
+                            AND [CheckType] = 1 
+                            ORDER BY CheckTime ASC""".format('2022-07-06',emp.Userid))
+
+            ent = entradas.fetchone()
+            sal = salidas.fetchone()
+            while ent:
+               
+                if ent and sal:
+                    if ent.CheckTime < sal.CheckTime:
+                        try:
+                            (self.env["hr.attendance"]).create({"employee_id":id,"check_in":ent.CheckTime,"check_out":sal.CheckTime})
+                            sal = salidas.fetchone()
+                            ent = entradas.fetchone()
+                        except:
+                            print('error')
+                            break;
+                    else:
+                         sal = salidas.fetchone()
+                elif ent and not sal:
+                        try:
+                            (self.env["hr.attendance"]).create({"employee_id":id,"check_in":ent.CheckTime})
+                            ent = entradas.fetchone()
+                        except:
+                            print('error')
+                            break;    
+            emp = employes.fetchone()                 
+
+        return{
+            'type': 'ir.actions.client',
+            'tag': 'display_notification',
+            'params': {
+                'title': 'Registros de Reloj',
+                'message': '''¡Atención! 
+                Importacion de datos terminada }''',
+                'sticky': True,
+                'target': 'current',
+                'type':'success',
+            }}
+ 

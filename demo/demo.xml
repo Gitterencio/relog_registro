@@ -1,0 +1,64 @@
+<odoo>
+    <data>
+<!--
+          <record id="object0" model="cochera.cochera">
+            <field name="name">Object 0</field>
+            <field name="value">0</field>
+          </record>
+
+          <record id="object1" model="cochera.cochera">
+            <field name="name">Object 1</field>
+            <field name="value">10</field>
+          </record>
+
+
+ <record id="aparcamiento1" model="cochera.aparcamiento">
+            <field name="name">Plaza Mayor</field>
+            <field name="plazas">11</field>
+          </record>
+
+ <record id="aparcamiento2" model="cochera.aparcamiento">
+            <field name="name">Calle Baja</field>
+            <field name="plazas">8</field>
+          </record>
+
+ <record id="coche1" model="cochera.coche">
+            <field name="name">AKD1123</field>
+            <field name="modelo">KIA TK</field>
+            <field name="construido">1996-04-10</field>
+            <field name="consumo">11.25</field>
+            <field name="averiado">0</field>
+            <field name="descripcion">auto clasico</field>
+            <field name="aparcamiento_id" ref="aparcamiento1"></field>
+          </record>
+
+ <record id="coche2" model="cochera.coche">
+            <field name="name">DBD1123</field>
+            <field name="modelo">HONDA DK</field>
+            <field name="construido">2000-05-15</field>
+            <field name="consumo">12.3</field>
+            <field name="averiado">True</field>
+            <field name="descripcion">auto del dos mil</field>
+            <field name="aparcamiento_id" ref="aparcamiento1"></field>
+          </record>
+
+ <record id="coche3" model="cochera.coche">
+            <field name="name">UVA1123</field>
+            <field name="modelo">HONDA DK</field>
+            <field name="construido">2000-05-15</field>
+            <field name="consumo">12.3</field>
+            <field name="averiado">False</field>
+            <field name="descripcion">auto del dos mil</field>
+            <field name="aparcamiento_id" ref="aparcamiento2"></field>
+          </record>
+
+ <record id="mantenimiento1" model="cochera.mantenimiento">
+            <field name="fecha" eval="datetime.now()" />
+            <field name="tipo">l</field>
+            <field name="coste">23</field>
+            <field name="coche_ids" eval="[(6,0,[ref('coche1'),ref('coche2')])]"/>
+          </record>
+
+-->
+    </data>
+</odoo>

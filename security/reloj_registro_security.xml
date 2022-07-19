@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+<data>
+    <!--DEFINIMOS CATEGORIA DE SEGURIDAD PARA EL MODULO -->
+    <record model="ir.module.category" id="reloj_registro.module_category_reloj_registro">
+        <field name="name">reloj_registro</field>
+        <field name="description">Ayuda a gestionar reloj_registro</field>
+        <field name="sequence">100</field>
+    </record>
+
+    <record model="res.groups" id="group_reloj_registro_usuario">
+        <field name="name">Usuario</field>
+        <field name="category_id" ref="reloj_registro.module_category_reloj_registro"/>
+        <field name="comment">Gestionan las conexiones</field>
+        <!--si quisieramos añadir a todos los usuarios a un grupo -->
+       <field name="implied_ids" eval="[(4,ref('base.group_user'))]"/> 
+    </record>
+
+    <record model="res.groups" id="group_reloj_registro_administrador">
+        <field name="name">Administrador</field>
+        <field name="category_id" ref="reloj_registro.module_category_reloj_registro"/>
+        <field name="comment">Gestiona las conexiones</field>
+        <!--los miembros de este grupo tambien son miembros del grupo de usuarios-->
+        <field name="implied_ids" eval="[(4,ref('group_reloj_registro_usuario'))]"/>
+        <!--Añadimos los admins de odoo-->
+        <field name="users" eval="[(4,ref('base.user_root')),(4,ref('base.user_admin'))]"/>
+    </record>
+
+
+</data>
+</odoo>

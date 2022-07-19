@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+<data>
+    <!--DEFINIMOS CATEGORIA DE SEGURIDAD PARA EL MODULO -->
+    <record model="ir.module.category" id="horas_extra.module_category_horas_extra">
+        <field name="name">horas_extra</field>
+        <field name="description">Ayuda a gestionar horas_extra</field>
+        <field name="sequence">100</field>
+    </record>
+
+    <record model="res.groups" id="group_horas_extra_usuario">
+        <field name="name">Usuario</field>
+        <field name="category_id" ref="horas_extra.module_category_horas_extra"/>
+        <field name="comment">Solicita las horas extra</field>
+        <!--si quisieramos añadir a todos los usuarios a un grupo -->
+       <field name="implied_ids" eval="[(4,ref('base.group_user'))]"/> 
+    </record>
+
+    <record model="res.groups" id="group_horas_extra_administrador">
+        <field name="name">Administrador</field>
+        <field name="category_id" ref="horas_extra.module_category_horas_extra"/>
+        <field name="comment">Gestiona las horas extra</field>
+        <!--los miembros de este grupo tambien son miembros del grupo de usuarios-->
+        <field name="implied_ids" eval="[(4,ref('group_horas_extra_usuario'))]"/>
+        <!--Añadimos los admins de odoo-->
+        <field name="users" eval="[(4,ref('base.user_root')),(4,ref('base.user_admin'))]"/>
+    </record>
+
+
+</data>
+</odoo>
