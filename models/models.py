@@ -1,22 +1,28 @@
+from sympy import Order
 from odoo import api, fields, models, SUPERUSER_ID, _
 from datetime import datetime, timedelta
 import pyodbc
 import re
 
+
 class importador(models.Model):
     _name = 'reloj_registro.importador'
     _description = 'Importador de registro de reloj'
-    
-    name = fields.Char(string='Nombre de la conexion',required=True)
-    host = fields.Char(string='Servidor de la BD',default='127.0.0.1',required=True,help='Coloque el nombre o direccion del servidor')
-    namedb = fields.Char(string='Nombre de la BD',default='RELOJ',required=True)
-    user = fields.Char(string='Usuario BD',default='SA',required=True)
-    driver =fields.Char(string='Driver',default='ODBC Driver 17 for SQL Server',required=True)
-    pwd = fields.Char(string='Contraseña BD',required=True)
-    pr_Dia = fields.Datetime(string='Fecha de inicio',required=True,default = fields.datetime.today())
-    ul_Dia = fields.Datetime(string='Fecha final',required=True,default = fields.datetime.today())
-    conn_string = fields.Text('Conexion',compute='_get_conn_string')
 
+    name = fields.Char(string='Nombre de la conexion', required=True)
+    host = fields.Char(string='Servidor de la BD', default='127.0.0.1',
+                       required=True, help='Coloque el nombre o direccion del servidor')
+    namedb = fields.Char(string='Nombre de la BD',
+                         default='RELOJ', required=True)
+    user = fields.Char(string='Usuario BD', default='SA', required=True)
+    driver = fields.Char(
+        string='Driver', default='ODBC Driver 17 for SQL Server', required=True)
+    pwd = fields.Char(string='Contraseña BD', required=True)
+    pr_Dia = fields.Datetime(string='Fecha de inicio',
+                             required=True, default=fields.datetime.today())
+    ul_Dia = fields.Datetime(string='Fecha final',
+                             required=True, default=fields.datetime.today())
+    conn_string = fields.Text('Conexion', compute='_get_conn_string')
 
     def _get_conn_string(self):
         self.conn_string = f"""
@@ -26,7 +32,7 @@ class importador(models.Model):
 	        Trust_Connection=yes;
 	        UID={self.user};
 	        PWD={self.pwd};"""
-    
+
     def imprimir_hora(self):
         data = datetime.now()
         return{
@@ -34,48 +40,69 @@ class importador(models.Model):
             'tag': 'display_notification',
             'params': {
                 'title': 'Fecha y Hora Interna',
-                'message': 'Hora: {0} || Fecha: {1}  TZ-Estandar '.format(data.time(),data.date()),
+                'message': 'Hora: {0} || Fecha: {1}  TZ-Estandar'.format(data.time(), data.date()),
                 'sticky': True,
                 'target': 'current',
-                'type':'warning',
+                'type': 'warning',
             }}
 
-    def _get_employee_id(self,code):
+    def _get_employee_id(self, code):
         id = 0
-        users= (self.env["hr.employee"].search([]))
+        users = (self.env["hr.employee"].search([]))
         for u in users:
             if(u.barcode):
-                limpio =re.sub('[\.-]','',u.barcode)
+                limpio = re.sub('[\.-]', '', u.barcode)
                 resultado = limpio[3:]
                 if(resultado == code):
-                    id=u.id
+                    id = u.id
         return id
 
-    def _crear_registro(self,id,en,sal):
-        reg= (self.env["hr.attendance"].search([('employee_id','=',id),('check_in','=',en)]))
-        if not reg:
-            try:
-                (self.env["hr.attendance"]).create({"employee_id":id,"check_in":(en) ,"check_out":(sal) })
-            except:
-                print('err')
+    def _crear_registro(self, id, en, sal):
+        reg = (self.env["hr.attendance"].search([('employee_id', '=', id), ('check_in',
+               '<=', en), ('check_out', '=', False)], order='create_date desc', limit=1))
 
+        if reg:
+            if en.date() > reg.check_in.date():
+                reg = (self.env["hr.attendance"].search([('employee_id', '=', id), ('check_in',
+                       '<=', en), ('check_out', '>=', en)], order='create_date desc', limit=1))
+                if not reg:
+                    reg = (self.env["hr.attendance"].search(
+                        [('employee_id', '=', id), ('check_in', '=', en)]))
+                    if not reg:
+                        try:
+                            (self.env["hr.attendance"]).create(
+                                {"employee_id": id, "check_in": (en), "check_out": (sal)})
+                        except Exception as e:
+                            print(e)
 
+        else:
+            reg = (self.env["hr.attendance"].search([('employee_id', '=', id), ('check_in',
+                   '<=', en), ('check_out', '>=', en)], order='create_date desc', limit=1))
+            if not reg:
+                reg = (self.env["hr.attendance"].search(
+                    [('employee_id', '=', id), ('check_in', '=', en)]))
+                if not reg:
+                    try:
+                        (self.env["hr.attendance"]).create(
+                            {"employee_id": id, "check_in": (en), "check_out": (sal)})
+                    except Exception as e:
+                        print(e)
 
-    def importar_registros(self,fecha):
-            db = self.namedb
-            cnxn=pyodbc.connect(self.conn_string)
-            entradas = pyodbc.connect(self.conn_string).cursor()
-            salidas = pyodbc.connect(self.conn_string).cursor()
-            employes = cnxn.cursor()
-            employes.execute(""" SELECT [Userid]
+    def importar_registros(self, fecha):
+        db = self.namedb
+        cnxn = pyodbc.connect(self.conn_string)
+        entradas = pyodbc.connect(self.conn_string).cursor()
+        salidas = pyodbc.connect(self.conn_string).cursor()
+        employes = cnxn.cursor()
+        employes.execute(""" SELECT [Userid]
                             	,[CardNum]
                             	,[Name] 
                             	FROM [{0}].[dbo].[Userinfo]; """.format(db))
 
-            emp = employes.fetchone() 
-            while emp:
-              id = self._get_employee_id(emp.CardNum)
-              if id :
+        emp = employes.fetchone()
+        while emp:
+            id = self._get_employee_id(emp.CardNum)
+            if id:
                 entradas.execute("""SELECT [Logid]
                                      ,[CheckTime]
                                      ,[CheckType]
@@ -86,7 +113,7 @@ class importador(models.Model):
                                 AND c.Userid = {0}
                                 AND [CheckType] = 0
                                 AND CONVERT(DATE,[CheckTime]) = '{2}'
-                                ORDER BY CheckTime ASC""".format(emp.Userid,db,fecha))
+                                ORDER BY CheckTime ASC""".format(emp.Userid, db, fecha))
                 salidas.execute("""SELECT [Logid]
                                      ,[CheckTime]
                                      ,[CheckType]
@@ -97,7 +124,7 @@ class importador(models.Model):
                                 AND c.Userid = {0}
                                 AND [CheckType] = 1
                                  AND CONVERT(DATE,[CheckTime]) = '{2}' 
-                                ORDER BY CheckTime ASC""".format(emp.Userid,db,fecha))
+                                ORDER BY CheckTime ASC""".format(emp.Userid, db, fecha))
                 ent = entradas.fetchone()
                 sal = salidas.fetchone()
 
@@ -105,23 +132,24 @@ class importador(models.Model):
                     if ent and sal:
                         if ent.CheckTime < sal.CheckTime:
 
-                            self._crear_registro(id,(ent.CheckTime  + timedelta(hours=6)) ,(sal.CheckTime  + timedelta(hours=6)))
+                            self._crear_registro(
+                                id, (ent.CheckTime + timedelta(hours=6)), (sal.CheckTime + timedelta(hours=6)))
 
                             ent = entradas.fetchone()
                             sal = salidas.fetchone()
                         else:
-                           sal = salidas.fetchone() 
+                            sal = salidas.fetchone()
                     elif ent and not sal:
-                            break
+                        break
 
-                emp = employes.fetchone()                 
-              else:
-                emp = employes.fetchone() 
+                emp = employes.fetchone()
+            else:
+                emp = employes.fetchone()
 
     def importar_registros_diario(self):
-        fecha = (datetime.now()  - timedelta(hours=6)).date()
+        fecha = (datetime.now() - timedelta(hours=6)).date()
         try:
-            self.importar_registros(fecha)   
+            self.importar_registros(fecha)
             return{
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
@@ -130,7 +158,7 @@ class importador(models.Model):
                     'message': '¡Atención! Importacion de datos terminada para la fecha {0}'.format(fecha),
                     'sticky': True,
                     'target': 'current',
-                    'type':'success',
+                    'type': 'success',
                 }}
         except:
             return{
@@ -142,9 +170,8 @@ class importador(models.Model):
                     Error en la Conexión ''',
                     'sticky': True,
                     'target': 'current',
-                    'type':'danger',
+                    'type': 'danger',
                 }}
-    
 
     def importar_registros_rango(self):
         ini = (self.pr_Dia - timedelta(hours=6)).date()
@@ -152,24 +179,24 @@ class importador(models.Model):
 
         try:
             if ini == fin:
-             self.importar_registros(ini)
-             
-            elif fin>ini:
-                 while (ini<=fin):
+                self.importar_registros(ini)
+
+            elif fin > ini:
+                while (ini <= fin):
                     self.importar_registros(ini)
-                    ini+=timedelta(days=1)
+                    ini += timedelta(days=1)
 
             else:
-             return{
-                'type': 'ir.actions.client',
-                'tag': 'display_notification',
-                'params': {
-                    'title': 'Registros de Reloj',
-                    'message':'¡Atención! Rango de dias invalido: {0} <-> {1}'.format(ini,fin),
-                    'sticky': True,
-                    'target': 'current',
-                    'type':'warning',
-                }}
+                return{
+                    'type': 'ir.actions.client',
+                    'tag': 'display_notification',
+                    'params': {
+                        'title': 'Registros de Reloj',
+                        'message': '¡Atención! Rango de dias invalido: {0} <-> {1}'.format(ini, fin),
+                        'sticky': True,
+                        'target': 'current',
+                        'type': 'warning',
+                    }}
             return{
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
@@ -179,9 +206,9 @@ class importador(models.Model):
                     Importacion de datos terminada ''',
                     'sticky': True,
                     'target': 'current',
-                    'type':'success',
+                    'type': 'success',
                 }}
-                    
+
         except:
             return{
                 'type': 'ir.actions.client',
@@ -192,7 +219,7 @@ class importador(models.Model):
                     Error en la Conexión ''',
                     'sticky': True,
                     'target': 'current',
-                    'type':'danger',
+                    'type': 'danger',
                 }}
 
 
@@ -203,7 +230,6 @@ conns= (env["reloj_registro.importador"].search([]))
 for i in range(len(conns)):
   conns[i].importar_registros_diario()
   """
-
 
 
 """
