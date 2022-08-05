@@ -1,4 +1,3 @@
-from sympy import Order
 from odoo import api, fields, models, SUPERUSER_ID, _
 from datetime import datetime, timedelta
 import pyodbc
@@ -66,27 +65,39 @@ class importador(models.Model):
                 reg = (self.env["hr.attendance"].search([('employee_id', '=', id), ('check_in',
                        '<=', en), ('check_out', '>=', en)], order='create_date desc', limit=1))
                 if not reg:
-                    reg = (self.env["hr.attendance"].search(
-                        [('employee_id', '=', id), ('check_in', '=', en)]))
+                    reg = (self.env["hr.attendance"].search([('employee_id', '=', id), ('check_in',
+                       '<=', sal), ('check_out', '>=', sal)], order='create_date desc', limit=1))
                     if not reg:
-                        try:
-                            (self.env["hr.attendance"]).create(
-                                {"employee_id": id, "check_in": (en), "check_out": (sal)})
-                        except Exception as e:
-                            print(e)
+                        reg = (self.env["hr.attendance"].search([('employee_id', '=', id), ('check_in',
+                       '>=', en), ('check_out', '<=', sal)], order='create_date desc', limit=1))
+                        if not reg:
+                            reg = (self.env["hr.attendance"].search(
+                                [('employee_id', '=', id), ('check_in', '=', en)]))
+                            if not reg:
+                                try:
+                                    (self.env["hr.attendance"]).create(
+                                        {"employee_id": id, "check_in": (en), "check_out": (sal)})
+                                except Exception as e:
+                                    print(e)
 
         else:
             reg = (self.env["hr.attendance"].search([('employee_id', '=', id), ('check_in',
                    '<=', en), ('check_out', '>=', en)], order='create_date desc', limit=1))
             if not reg:
-                reg = (self.env["hr.attendance"].search(
-                    [('employee_id', '=', id), ('check_in', '=', en)]))
+                reg = (self.env["hr.attendance"].search([('employee_id', '=', id), ('check_in',
+                   '<=', sal), ('check_out', '>=', sal)], order='create_date desc', limit=1))
                 if not reg:
-                    try:
-                        (self.env["hr.attendance"]).create(
-                            {"employee_id": id, "check_in": (en), "check_out": (sal)})
-                    except Exception as e:
-                        print(e)
+                    reg = (self.env["hr.attendance"].search([('employee_id', '=', id), ('check_in',
+                   '>=', en), ('check_out', '<=', sal)], order='create_date desc', limit=1))
+                    if not reg:
+                        reg = (self.env["hr.attendance"].search(
+                            [('employee_id', '=', id), ('check_in', '=', en)]))
+                        if not reg:
+                            try:
+                                (self.env["hr.attendance"]).create(
+                                    {"employee_id": id, "check_in": (en), "check_out": (sal)})
+                            except Exception as e:
+                                print(e)
 
     def importar_registros(self, fecha):
         db = self.namedb
