@@ -2,7 +2,9 @@ from odoo import api, fields, models, SUPERUSER_ID, _
 from datetime import datetime, timedelta
 import pyodbc
 import re
-
+#encriptar
+from cryptocode import encrypt,decrypt
+#pip install  cryptocode
 
 class importador(models.Model):
     _name = 'reloj_registro.importador'
@@ -23,14 +25,20 @@ class importador(models.Model):
                              required=True, default=fields.datetime.today())
     conn_string = fields.Text('Conexion', compute='_get_conn_string')
 
+    @api.onchange('pwd')
+    def _onchange_pass_encrypt(self):
+        if self.pwd:
+            self.pwd = encrypt("{0}".format(self.pwd),"uwu")
+
     def _get_conn_string(self):
+        pwd_d = decrypt("{0}".format(self.pwd),"uwu")
         self.conn_string = f"""
 	        DRIVER={{{self.driver}}};
 	        SERVER={self.host};
 	        DATABASE={self.namedb};
 	        Trust_Connection=yes;
 	        UID={self.user};
-	        PWD={self.pwd};"""
+	        PWD={pwd_d};"""
 
     def imprimir_hora(self):
         data = datetime.now()
@@ -49,8 +57,8 @@ class importador(models.Model):
         id = 0
         users = (self.env["hr.employee"].search([]))
         for u in users:
-            if(u.barcode):
-                limpio = re.sub('[\.-]', '', u.barcode)
+            if(u.identification_id):
+                limpio = re.sub('[\.-]', '', u.identification_id)
                 resultado = limpio[3:]
                 if(resultado == code):
                     id = u.id
