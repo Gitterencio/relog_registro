@@ -1,3 +1,4 @@
 # -*- coding: utf-8 -*-
 
-from . import models
+from . import importador_reloj
+from . import importador_vicidial

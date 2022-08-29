@@ -1,45 +1,35 @@
 from odoo import api, fields, models, SUPERUSER_ID, _
 from datetime import datetime, timedelta
-import pyodbc
+import mysql.connector
+from mysql.connector import Error
 import re
 #encriptar
 from cryptocode import encrypt,decrypt
 #pip install  cryptocode
 
-class importador(models.Model):
-    _name = 'reloj_registro.importador'
-    _description = 'Importador de registro de reloj'
+#pip install mysql-connector-python
+class importador_vici(models.Model):
+    _name = 'reloj_registro.importador_vici'
+    _description = 'Importador de registros vicidial'
 
     name = fields.Char(string='Nombre de la conexion', required=True)
-    host = fields.Char(string='Servidor de la BD', default='127.0.0.1',
+    host = fields.Char(string='Servidor de la BD', default='10.0.90.1',
                        required=True, help='Coloque el nombre o direccion del servidor')
     namedb = fields.Char(string='Nombre de la BD',
-                         default='RELOJ', required=True)
+                         default='asterisk', required=True)
     user = fields.Char(string='Usuario BD', default='SA', required=True)
-    driver = fields.Char(
-        string='Driver', default='ODBC Driver 17 for SQL Server', required=True)
     pwd = fields.Char(string='Contraseña BD', required=True)
     pr_Dia = fields.Datetime(string='Fecha de inicio',
                              required=True, default=fields.datetime.today())
     ul_Dia = fields.Datetime(string='Fecha final',
                              required=True, default=fields.datetime.today())
-    conn_string = fields.Text('Conexion', compute='_get_conn_string')
+
 
     @api.onchange('pwd')
     def _onchange_pass_encrypt(self):
         if self.pwd:
             self.pwd = encrypt("{0}".format(self.pwd),"uwu")
-
-    def _get_conn_string(self):
-        pwd_d = decrypt("{0}".format(self.pwd),"uwu")
-        self.conn_string = f"""
-	        DRIVER={{{self.driver}}};
-	        SERVER={self.host};
-	        DATABASE={self.namedb};
-	        Trust_Connection=yes;
-	        UID={self.user};
-	        PWD={pwd_d};"""
-
+            
     def imprimir_hora(self):
         data = datetime.now()
         return{
@@ -52,19 +42,19 @@ class importador(models.Model):
                 'target': 'current',
                 'type': 'warning',
             }}
-
+    
     def _get_employee_id(self, code):
         id = 0
         users = (self.env["hr.employee"].search([]))
         for u in users:
-            if(u.identification_id):
-                limpio = re.sub('[\.-]', '', u.identification_id)
-                resultado = limpio[3:]
-                if(resultado == code):
+            if(u.pin):
+                
+                if(u.pin == code):
                     id = u.id
         return id
-
     def _crear_registro(self, id, en, sal):
+
+        #print(f'{id} - {en} {sal}')
         reg = (self.env["hr.attendance"].search([('employee_id', '=', id), ('check_in',
                '<=', en), ('check_out', '=', False)], order='create_date desc', limit=1))
 
@@ -106,66 +96,71 @@ class importador(models.Model):
                                     {"employee_id": id, "check_in": (en), "check_out": (sal)})
                             except Exception as e:
                                 print(e)
-
     def importar_registros(self, fecha):
-        db = self.namedb
-        cnxn = pyodbc.connect(self.conn_string)
-        entradas = pyodbc.connect(self.conn_string).cursor()
-        salidas = pyodbc.connect(self.conn_string).cursor()
-        employes = cnxn.cursor()
-        employes.execute(""" SELECT [Userid]
-                            	,[CardNum]
-                            	,[Name] 
-                            	FROM [{0}].[dbo].[Userinfo]; """.format(db))
+        pwd_d = decrypt("{0}".format(self.pwd),"uwu")
+     
+        cnxn = mysql.connector.connect(host=self.host,
+                                         database=self.namedb,
+                                         user=self.user,
+                                         password=pwd_d )
+                                
+        if cnxn.is_connected():
+            db_Info = cnxn.get_server_info()
+            #print("Connected to MySQL Server version ", db_Info)
+            employes = cnxn.cursor(buffered=True)
+            entradas = cnxn.cursor(buffered=True)
+            salidas = cnxn.cursor(buffered=True)
 
-        emp = employes.fetchone()
-        while emp:
-            id = self._get_employee_id(emp.CardNum)
-            if id:
-                entradas.execute("""SELECT [Logid]
-                                     ,[CheckTime]
-                                     ,[CheckType]
-                             	     ,[Statusid]
-                                     ,[StatusText]
-                                FROM [{1}].[dbo].[Checkinout] c
-                                INNER JOIN [{1}].[dbo].[Status] s ON s.Statusid = c.CheckType 
-                                AND c.Userid = {0}
-                                AND [CheckType] = 0
-                                AND CONVERT(DATE,[CheckTime]) = '{2}'
-                                ORDER BY CheckTime ASC""".format(emp.Userid, db, fecha))
-                salidas.execute("""SELECT [Logid]
-                                     ,[CheckTime]
-                                     ,[CheckType]
-                             	     ,[Statusid]
-                                     ,[StatusText]
-                                FROM [{1}].[dbo].[Checkinout] c
-                                INNER JOIN [{1}].[dbo].[Status] s ON s.Statusid = c.CheckType 
-                                AND c.Userid = {0}
-                                AND [CheckType] = 1
-                                 AND CONVERT(DATE,[CheckTime]) = '{2}' 
-                                ORDER BY CheckTime ASC""".format(emp.Userid, db, fecha))
-                ent = entradas.fetchone()
-                sal = salidas.fetchone()
+            employes.execute(""" SELECT  user,full_name FROM vicidial_users vu ORDER BY user ASC """)
 
-                while ent:
-                    if ent and sal:
-                        if ent.CheckTime < sal.CheckTime:
+            emp = employes.fetchone()
+           
+            while emp:
+                    
+                id = self._get_employee_id(emp[0])
+                   
+                if id:
+                    entradas.execute("""SELECT event_date,event FROM vicidial_timeclock_log vtl
+							WHERE user = {0}
+							AND event = 'LOGIN'                              
+							AND DATE(event_date)  =  '{1}'                             
+							ORDER BY event_date ASC""".format(emp[0],fecha))
 
-                            self._crear_registro(
-                                id, (ent.CheckTime + timedelta(hours=6)), (sal.CheckTime + timedelta(hours=6)))
+                    salidas.execute("""SELECT event_date,event FROM vicidial_timeclock_log vtl
+							WHERE user = {0}
+							AND event != 'LOGIN'                              
+							AND DATE(event_date)  =  '{1}'                             
+							ORDER BY event_date ASC""".format(emp[0], fecha))
 
-                            ent = entradas.fetchone()
-                            sal = salidas.fetchone()
-                        else:
-                            sal = salidas.fetchone()
-                    elif ent and not sal:
-                        break
+                    ent = entradas.fetchone()
+                    sal = salidas.fetchone()
+                    #print(ent[0])
+                    #print(sal[0])
+                    while ent:
+                        if ent and sal:
+                            if ent[0] < sal[0]:
 
-                emp = employes.fetchone()
-            else:
-                emp = employes.fetchone()
+                                self._crear_registro(id, (ent[0] + timedelta(hours=6)), (sal[0] + timedelta(hours=6)))
 
-    def importar_registros_diario(self):
+                                ent = entradas.fetchone()
+                                sal = salidas.fetchone()
+                            else:
+                                sal = salidas.fetchone()
+                        elif ent and not sal:
+                            break
+
+                    emp = employes.fetchone()
+                else:
+                    emp = employes.fetchone()
+
+            if cnxn.is_connected():
+                entradas.close()
+                salidas.close() 
+                employes.close()
+                cnxn.close()
+                #print("MySQL connection is closed")
+
+    def importar_registros_diario_vici(self):
         fecha = (datetime.now() - timedelta(hours=6)).date()
         try:
             self.importar_registros(fecha)
@@ -240,24 +235,10 @@ class importador(models.Model):
                     'target': 'current',
                     'type': 'danger',
                 }}
-
-
 """ 
 BLOQUE DE CODIGO PARA ACCIONES AUTOMATICAS ODOO
-conns= (env["reloj_registro.importador"].search([]))
+conns= (env["reloj_registro.importador_vici"].search([]))
 
 for i in range(len(conns)):
-  conns[i].importar_registros_diario()
+  conns[i].importar_registros_diario_vici()
   """
-
-
-"""
-REGLA SALARIAL PARA AUSENCIAS SIN PAGA
-Condiciones
-Condición basada en	Python Expression
-Condición python	result = worked_days.ANPG
-
-Cálculo
-Tipo de importe	Python Code
-Código Python	result = (worked_days.ANPG.number_of_days)*(BASIC/30)*-1
-"""

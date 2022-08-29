@@ -15,8 +15,45 @@
       </field>
     </record>
 
+<!--VISTAS DE importador_vici-->
+<record model="ir.ui.view" id="reloj_registro.importador_vici_list_view">
+  <field name="name">reloj_registro.importador_vici.view.tree</field>
+  <field name="model">reloj_registro.importador_vici</field>
+  <field name="arch" type="xml">
+    <tree>
+     <!--Definir estructura-->
+     <field name="name" /> 
+    <!--Definir estructura-->
+    </tree>
 
+  </field>
+</record>
 
+<record model="ir.ui.view" id="reloj_registro.importador_vici_search_view">
+  <field name="name">reloj_registro.importador_vici.view.search</field>
+  <field name="model">reloj_registro.importador_vici</field>
+  <field name="arch" type="xml">
+    <search>
+      <field name="name" />
+
+      <!--Definir estructura-->
+    </search>
+  </field>
+</record>
+
+<record model="ir.ui.view" id="reloj_registro.importador_search_view">
+  <field name="name">reloj_registro.importador.view.search</field>
+  <field name="model">reloj_registro.importador</field>
+  <field name="arch" type="xml">
+    <search>
+      <field name="name" />
+
+      <!--Definir estructura-->
+    </search>
+  </field>
+</record>
+
+<!-- FORMULARIOS-->
 
     <record model="ir.ui.view" id="reloj_registro.importador_form_view">
       <field name="name">reloj_registro.importador.view.form</field>
@@ -53,9 +90,43 @@
 
 
 
+    <record model="ir.ui.view" id="reloj_registro.importador_vici_form_view">
+      <field name="name">reloj_registro.importador_vici.view.form</field>
+      <field name="model">reloj_registro.importador_vici</field>
+      <field name="arch" type="xml">
+        <form string="Formulario Importador">
+          <header>
+            <button name="imprimir_hora" string="Hora ODOO(TZ)" type="object" class=" btn-default" />
+             <button name="importar_registros_rango" string="Importar Registros" type="object" class="btn-primary" />
+          </header>
+          <sheet>
+          <separator string="Rango de fechas para la importacion de datos" />
+          <group>
+            <group>
+            <field name="pr_Dia"/>
+            </group>
+             <group>
+            <field name="ul_Dia"/>
+            </group>
+          </group>
+          <separator string="Datos de conexion" />
+              <group>
+                <field name="name" placeholder="Nombre de la Conexion" /> 
+                <field name="host"/>
+                <field name="namedb"/>
+                <field name="user"/>
+                <field name="pwd" password="True"/>
+              </group>
+          </sheet>
+        </form>
+      </field>
+    </record>
+
+
+
 <!--ACCIONES DE MENU-->
     <record model="ir.actions.act_window" id="reloj_registro.importador_action_window">
-      <field name="name">Configuracion de Importe</field>
+      <field name="name">Configuracion Reloj MArcador</field>
       <field name="res_model">reloj_registro.importador</field>
       <field name="view_mode">tree,form</field>
       <field name="view_ids" eval="[(5, 0, 0),
@@ -64,6 +135,11 @@
      
     </record>
 
+    <record model="ir.actions.act_window" id="reloj_registro.importador_vici_action_window">
+      <field name="name">Configuracion Vicidial</field>
+      <field name="res_model">reloj_registro.importador_vici</field>
+      <field name="view_mode">tree,form</field>
+    </record>
 
     <!-- Top menu item_ Principal de instalcion -->
 
@@ -71,7 +147,8 @@
 
     <!-- menu categories -->
 
-    <menuitem name="Importar Registro" id="reloj_registro.importador_menu" parent="reloj_registro.menu_root"  action="reloj_registro.importador_action_window" />
+    <menuitem name="Registros Reloj Marcador " id="reloj_registro.importador_menu" parent="reloj_registro.menu_root"  action="reloj_registro.importador_action_window" />
+    <menuitem name="Registros Vicidial " id="reloj_registro.importador_vici_menu" parent="reloj_registro.menu_root"  action="reloj_registro.importador_vici_action_window" />
 
   
   </data>
