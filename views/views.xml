@@ -126,7 +126,7 @@
 
 <!--ACCIONES DE MENU-->
     <record model="ir.actions.act_window" id="reloj_registro.importador_action_window">
-      <field name="name">Configuracion Reloj MArcador</field>
+      <field name="name">Configuracion Reloj Marcador</field>
       <field name="res_model">reloj_registro.importador</field>
       <field name="view_mode">tree,form</field>
       <field name="view_ids" eval="[(5, 0, 0),

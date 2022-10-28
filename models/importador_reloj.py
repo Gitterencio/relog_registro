@@ -124,7 +124,7 @@ class importador(models.Model):
         while emp:
             id = self._get_employee_id(emp.CardNum)
             if id:
-                entradas.execute("""SELECT [Logid]
+                entradas.execute("""SELECT TOP 1 [Logid]
                                      ,[CheckTime]
                                      ,[CheckType]
                              	     ,[Statusid]
@@ -132,10 +132,9 @@ class importador(models.Model):
                                 FROM [{1}].[dbo].[Checkinout] c
                                 INNER JOIN [{1}].[dbo].[Status] s ON s.Statusid = c.CheckType 
                                 AND c.Userid = {0}
-                                AND [CheckType] = 0
                                 AND CONVERT(DATE,[CheckTime]) = '{2}'
                                 ORDER BY CheckTime ASC""".format(emp.Userid, db, fecha))
-                salidas.execute("""SELECT [Logid]
+                salidas.execute("""SELECT TOP 1 [Logid]
                                      ,[CheckTime]
                                      ,[CheckType]
                              	     ,[Statusid]
@@ -143,9 +142,8 @@ class importador(models.Model):
                                 FROM [{1}].[dbo].[Checkinout] c
                                 INNER JOIN [{1}].[dbo].[Status] s ON s.Statusid = c.CheckType 
                                 AND c.Userid = {0}
-                                AND [CheckType] = 1
                                  AND CONVERT(DATE,[CheckTime]) = '{2}' 
-                                ORDER BY CheckTime ASC""".format(emp.Userid, db, fecha))
+                                ORDER BY CheckTime DESC""".format(emp.Userid, db, fecha))
                 ent = entradas.fetchone()
                 sal = salidas.fetchone()
 

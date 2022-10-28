@@ -96,46 +96,36 @@ class importador_vici(models.Model):
                                     {"employee_id": id, "check_in": (en), "check_out": (sal)})
                             except Exception as e:
                                 print(e)
-    def importar_registros(self, fecha):
-        pwd_d = decrypt("{0}".format(self.pwd),"uwu")
-     
-        cnxn = mysql.connector.connect(host=self.host,
-                                         database=self.namedb,
-                                         user=self.user,
-                                         password=pwd_d )
-                                
-        if cnxn.is_connected():
-            db_Info = cnxn.get_server_info()
-            #print("Connected to MySQL Server version ", db_Info)
-            employes = cnxn.cursor(buffered=True)
-            entradas = cnxn.cursor(buffered=True)
-            salidas = cnxn.cursor(buffered=True)
-
-            employes.execute(""" SELECT  user,full_name FROM vicidial_users vu ORDER BY user ASC """)
-
-            emp = employes.fetchone()
-           
-            while emp:
-                    
+    def importar_registros(self, fecha,emp,entradas,salidas):
+                                       
                 id = self._get_employee_id(emp[0])
-                   
+ 
                 if id:
+                     
                     entradas.execute("""SELECT event_date,event FROM vicidial_timeclock_log vtl
 							WHERE user = {0}
 							AND event = 'LOGIN'                              
 							AND DATE(event_date)  =  '{1}'                             
-							ORDER BY event_date ASC""".format(emp[0],fecha))
+							ORDER BY event_date ASC LIMIT 5 """.format(emp[0],fecha))
 
                     salidas.execute("""SELECT event_date,event FROM vicidial_timeclock_log vtl
 							WHERE user = {0}
-							AND event != 'LOGIN'                              
+							AND event = 'LOGOUT'                              
 							AND DATE(event_date)  =  '{1}'                             
-							ORDER BY event_date ASC""".format(emp[0], fecha))
+							ORDER BY event_date ASC LIMIT 5 """.format(emp[0], fecha))
+                    
+                    sal = salidas.fetchone()
+                    if not sal:
+                            salidas.execute("""SELECT event_date,event FROM vicidial_timeclock_log vtl
+							WHERE user = {0}
+							AND event = 'AUTOLOGOUT'                              
+							AND DATE(event_date)  =  '{1}'                             
+							ORDER BY event_date ASC LIMIT 1 """.format(emp[0], fecha+timedelta(days=1)))
+                            
+                            sal = salidas.fetchone()
 
                     ent = entradas.fetchone()
-                    sal = salidas.fetchone()
-                    #print(ent[0])
-                    #print(sal[0])
+                    
                     while ent:
                         if ent and sal:
                             if ent[0] < sal[0]:
@@ -149,21 +139,38 @@ class importador_vici(models.Model):
                         elif ent and not sal:
                             break
 
-                    emp = employes.fetchone()
-                else:
-                    emp = employes.fetchone()
-
-            if cnxn.is_connected():
-                entradas.close()
-                salidas.close() 
-                employes.close()
-                cnxn.close()
-                #print("MySQL connection is closed")
 
     def importar_registros_diario_vici(self):
         fecha = (datetime.now() - timedelta(hours=6)).date()
+        fecha -= timedelta(days=1)
+        pwd_d = decrypt("{0}".format(self.pwd),"uwu")
+        li = 0
+        lg = 10
+
         try:
-            self.importar_registros(fecha)
+            cnxn = mysql.connector.connect(host=self.host,
+                                         database=self.namedb,
+                                         user=self.user,
+                                         password=pwd_d )
+        
+            if cnxn.is_connected():
+                employes = cnxn.cursor(buffered=True)
+                entradas = cnxn.cursor(buffered=True)
+                salidas = cnxn.cursor(buffered=True)
+                employes.execute(f"""SELECT  user,full_name FROM vicidial_users vu ORDER BY user ASC LIMIT {li},{lg} """)
+                emp = employes.fetchone()
+
+                while emp :
+                   
+                    while emp:
+                        self.importar_registros(fecha,emp,entradas,salidas)
+
+                        emp = employes.fetchone()
+                    li+=lg
+                    print("tanda siguiente")
+                    employes.execute(f"""SELECT  user,full_name FROM vicidial_users vu ORDER BY user ASC LIMIT {li},{lg} """)
+                    emp = employes.fetchone()
+
             return{
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
@@ -186,31 +193,63 @@ class importador_vici(models.Model):
                     'target': 'current',
                     'type': 'danger',
                 }}
+        finally:
+            if cnxn.is_connected():
+                entradas.close()
+                salidas.close() 
+                employes.close()
+                cnxn.close()
+                print("close conexion")
 
     def importar_registros_rango(self):
         ini = (self.pr_Dia - timedelta(hours=6)).date()
         fin = (self.ul_Dia - timedelta(hours=6)).date()
-
+        date_x = ini
+        li = 0
+        lg = 10
+        pwd_d = decrypt("{0}".format(self.pwd),"uwu")
+     
         try:
-            if ini == fin:
-                self.importar_registros(ini)
+            cnxn = mysql.connector.connect(host=self.host,
+                                         database=self.namedb,
+                                         user=self.user,
+                                         password=pwd_d )
+        
+            if cnxn.is_connected():
+                employes = cnxn.cursor(buffered=True)
+                entradas = cnxn.cursor(buffered=True)
+                salidas = cnxn.cursor(buffered=True)
+                employes.execute(f"""SELECT  user,full_name FROM vicidial_users vu ORDER BY user ASC LIMIT {li},{lg} """)
+                emp = employes.fetchone()
+                while emp :
+                   
+                    while emp:
+                         
+                        date_x = ini    
+                        if date_x == fin:
+                            self.importar_registros(date_x,emp,entradas,salidas)
 
-            elif fin > ini:
-                while (ini <= fin):
-                    self.importar_registros(ini)
-                    ini += timedelta(days=1)
+                        elif fin > date_x:
+                           while (date_x <= fin):
+                               self.importar_registros(date_x,emp,entradas,salidas)
+                               date_x += timedelta(days=1)
 
-            else:
-                return{
-                    'type': 'ir.actions.client',
-                    'tag': 'display_notification',
-                    'params': {
-                        'title': 'Registros de Reloj',
-                        'message': '¡Atención! Rango de dias invalido: {0} <-> {1}'.format(ini, fin),
-                        'sticky': True,
-                        'target': 'current',
-                        'type': 'warning',
-                    }}
+                        else:
+                            return{
+                                'type': 'ir.actions.client',
+                                'tag': 'display_notification',
+                                'params': {
+                                    'title': 'Registros de Reloj',
+                                    'message': '¡Atención! Rango de dias invalido: {0} <-> {1}'.format(ini, fin),
+                                    'sticky': True,
+                                    'target': 'current',
+                                    'type': 'warning',
+                                }}
+                        emp = employes.fetchone()
+                    li+=lg
+                    print("tanda siguiente")
+                    employes.execute(f"""SELECT  user,full_name FROM vicidial_users vu ORDER BY user ASC LIMIT {li},{lg} """)
+                    emp = employes.fetchone()
             return{
                 'type': 'ir.actions.client',
                 'tag': 'display_notification',
@@ -235,6 +274,13 @@ class importador_vici(models.Model):
                     'target': 'current',
                     'type': 'danger',
                 }}
+        finally:
+            if cnxn.is_connected():
+                entradas.close()
+                salidas.close() 
+                employes.close()
+                cnxn.close()
+                print("close conexion")
 """ 
 BLOQUE DE CODIGO PARA ACCIONES AUTOMATICAS ODOO
 conns= (env["reloj_registro.importador_vici"].search([]))
